@@ -20,12 +20,18 @@ jobs:
       - name: Build and run containers
         run: |
           docker compose up -d --build
+          
+      - name: Wait for containers
+        run: sleep 5
 
       - name: Verify running containers
         run: docker ps -a
 
       - name: List fiels
         run: docker exec php-fpm ls -la
+
+      - name: Install dependencies
+        run: docker exec php-fpm composer install
 
       - name: Run tests
         run: docker exec php-fpm php bin/phpunit
