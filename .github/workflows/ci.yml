@@ -11,15 +11,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    build:
 
-      - name: Run Symfony container
-        run: |
-          ls -la
-          docker compose up -d --build
-          docker ps -a
+      runs-on: ubuntu-latest
 
-      - name: Run Symfony tests
-        run: docker exec php-fpm  bin/phpunit -c phpunit.xml.dist
+      steps:
+        - uses: actions/checkout@v4
+        - name: Docker
+          run: |
+            docker compose up -d --build
+            docker ps -a
+        - name: Files
+          run: docker compose exec php-fpm ls -la
+
+        - name: Run tests
+          run: docker compose exec php-fpm  bin/phpunit
+
+        - name: Docker down
+          run: docker compose down
+
+
