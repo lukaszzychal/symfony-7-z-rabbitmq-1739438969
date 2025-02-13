@@ -43,6 +43,7 @@ jobs:
           docker compose down
 
   tests:
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
