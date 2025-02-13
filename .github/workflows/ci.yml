@@ -1,0 +1,31 @@
+name: CI Symfony with Docker
+
+on:
+  push:
+#    branches:
+#      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t my-symfony-app .
+
+      - name: Run Symfony container
+        run: docker run -d -p 8000:80 --name app symfony-app
+
+      - name: Wait for the application to start
+        run: sleep 10
+
+      - name: Run Symfony tests
+        run: docker exec app bin/phpunit
