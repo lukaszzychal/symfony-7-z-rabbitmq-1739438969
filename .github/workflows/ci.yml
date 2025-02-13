@@ -22,4 +22,4 @@ jobs:
           docker ps -a
 
       - name: Run Symfony tests
-        run: docker exec php-fpm  bin/phpunit
+        run: docker exec php-fpm  bin/phpunit -c phpunit.xml.dist
