@@ -28,15 +28,14 @@ jobs:
         run: docker ps -a
 
       - name: List fiels
-        run: docker exec php-fpm ls -la
+        run: docker exec php ls -la
 
       - name: Install dependencies
-        run: |
-          git config --global --add safe.directory /app
-          docker exec php-fpm composer install
+        run: docker exec php composer install
 
       - name: Run tests
-        run: docker exec php-fpm php bin/phpunit
+        run: docker exec php ./bin/phpunit
+
 
       - name: Down containers
         run: |
