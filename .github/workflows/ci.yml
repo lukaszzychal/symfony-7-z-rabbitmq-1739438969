@@ -27,15 +27,39 @@ jobs:
       - name: Verify running containers
         run: docker ps -a
 
-      - name: List fiels
-        run: docker exec php ls -la
-
       - name: Install dependencies
         run: docker exec php composer install
 
+      - name: List fiels
+        run: docker exec php ls -la
+
+      - name: Test build
+        run: |
+          docker exec php php bin/console 
+          docker exec php php cd ./vendor
+
+      - name: Down containers
+        run: |
+          docker compose down
+
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and run containers
+        run: |
+          docker compose up -d --build
+          sleep 5
+          docker exec php composer install
+
       - name: Run tests
         run: docker exec php ./bin/phpunit
-
 
       - name: Down containers
         run: |
