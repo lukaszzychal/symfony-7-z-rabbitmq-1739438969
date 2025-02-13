@@ -11,15 +11,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Build and run
-      run: |
-        docker compose up -d --build 
-        docker ps -a
-        sleep 10
+      - name: Run Symfony container
+        run: docker compose up -d --build
 
-    - name: Test
-      run: docker exec php-fpm /bin/phpunit
+      - name: Run Symfony tests
+        run: docker exec php-fpm  bin/phpunit
