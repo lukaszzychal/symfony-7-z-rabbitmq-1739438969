@@ -25,7 +25,7 @@ jobs:
         run: docker ps -a
 
       - name: List fiels
-        run: docker exec php-fpm ls
+        run: docker exec php-fpm ls -la
 
       - name: Down containers
         run: |
