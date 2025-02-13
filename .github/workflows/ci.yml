@@ -23,3 +23,10 @@ jobs:
 
       - name: Verify running containers
         run: docker ps -a
+
+      - name: List fiels
+        run: docker exec php-fpm ls
+
+      - name: Down containers
+        run: |
+          docker compose down 
