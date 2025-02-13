@@ -14,6 +14,7 @@ services:
 
     php-fpm:
         build: phpdocker/php-fpm
+        container_name: app-php
         working_dir: /app
         volumes:
             - '.:/app'

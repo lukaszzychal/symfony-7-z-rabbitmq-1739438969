@@ -15,14 +15,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t my-symfony-app .
-
       - name: Run Symfony container
-        run: docker run -d -p 8000:80 --name app symfony-app
+        run: docker compose -f ./docker-compose.yml -p symfony-7-z-rabbitmq-1739438969 up -d --build
 
       - name: Wait for the application to start
         run: sleep 10
 
       - name: Run Symfony tests
-        run: docker exec app bin/phpunit
+        run: docker exec app-php  bin/phpunit
