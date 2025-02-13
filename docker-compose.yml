@@ -14,7 +14,9 @@ services:
 
     php-fpm:
         build: phpdocker/php-fpm
-        container_name: app-php
+        container_name: php-fpm
         working_dir: /app
         volumes:
             - '.:/app'
+            - './phpdocker/php-fpm/php-ini-overrides.ini:/etc/php/8.4/fpm/conf.d/99-overrides.ini'
+            - './phpdocker/php-fpm/php-ini-overrides.ini:/etc/php/8.4/cli/conf.d/99-overrides.ini'
