@@ -31,7 +31,9 @@ jobs:
         run: docker exec php-fpm ls -la
 
       - name: Install dependencies
-        run: docker exec php-fpm composer install
+        run: |
+          git config --global --add safe.directory /app
+          docker exec php-fpm composer install
 
       - name: Run tests
         run: docker exec php-fpm php bin/phpunit
