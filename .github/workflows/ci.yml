@@ -27,6 +27,9 @@ jobs:
       - name: List fiels
         run: docker exec php-fpm ls -la
 
+      - name: Run tests
+        run: docker exec php-fpm php bin/phpunit
+
       - name: Down containers
         run: |
           docker compose down 
