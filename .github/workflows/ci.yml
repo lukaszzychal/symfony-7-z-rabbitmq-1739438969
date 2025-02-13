@@ -36,7 +36,7 @@ jobs:
       - name: Test build
         run: |
           docker exec php php bin/console 
-          docker exec php php cd ./vendor
+          docker exec php ls -la ./vendor
 
       - name: Down containers
         run: |
