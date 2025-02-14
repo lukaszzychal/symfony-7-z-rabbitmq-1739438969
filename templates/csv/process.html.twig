@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome to Symfony!</title>
+</head>
+<body>
+<h1>Process started</h1>
+
+<div id="status">
+
+</div>
+
+<script>
+    const userAction = async () => {
+        const response = await fetch('http://localhost:8080/import/status/{{ fileName }}', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        const dataJson = await response.json(); //extract JSON from the http response
+        let percentage = dataJson['percentage'];
+        console.log(percentage)
+        document.getElementById("status").innerHTML = percentage + '%';
+        if(percentage === undefined) {
+            document.getElementById("status").innerHTML = '"Invalid File"';
+            clearInterval(refreshId);
+        }
+        if(percentage === 100) {
+            clearInterval(refreshId);
+        }
+
+
+    }
+
+    var refreshId = setInterval(userAction, 500);
+
+    document.getElementById("status").innerHTML = "0%";
+</script>
+
+</body>
+</html>
