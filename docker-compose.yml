@@ -21,9 +21,44 @@ services:
     working_dir: /app
     volumes:
       - '.:/app'
+      - './phpdocker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini'
+#      - './phpdocker/php-fpm/php-ini-overrides.ini:/etc/php/8.4/cli/conf.d/99-overrides.ini'
     networks:
       - symfony-network
+
+  mongo:
+    image: mongo:3.7
+    container_name: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: dev
+    networks:
+    - symfony-network
+    ports:
+      - "27017:27017"
+
+
+###> doctrine/mongodb-odm-bundle ###
+  mongodb:
+    # In production, you may want to use a managed database service
+    image: mongodb/mongodb-atlas-local:latest
+    environment:
+      - MONGODB_INITDB_DATABASE=${MONGODB_DB:-app}
+      # You should definitely set a root username and password in production
+      - MONGODB_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-}
+      - MONGODB_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-}
+    volumes:
+      - mongodb_data:/data/db:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/mongodb/data:/data/db:rw
+###< doctrine/mongodb-odm-bundle ###
 
 networks:
   symfony-network:
     driver: bridge
+
+volumes:
+###> doctrine/mongodb-odm-bundle ###
+  mongodb_data:
+###< doctrine/mongodb-odm-bundle ###

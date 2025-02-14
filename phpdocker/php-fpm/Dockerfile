@@ -1,15 +1,18 @@
-FROM phpdockerio/php:8.4-fpm
+FROM php:8.4-fpm
 RUN apt-get update && apt-get install -y \
     git \
     zip \
     unzip \
     curl
 
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
-    php -r "if (hash_file('sha384', 'composer-setup.php') === 'dac665fdc30fdd8ec78b38b9800061b4150413ff2e3b6f88543c636f7cd84f6db9189d43a81e5503cda447da73c7e5b6') { echo 'Installer verified'.PHP_EOL; } else { echo 'Installer corrupt'.PHP_EOL; unlink('composer-setup.php'); exit(1); }" \
-    php composer-setup.php \
-    php -r "unlink('composer-setup.php');" \
-    mv composer.phar /usr/local/bin/composer
+RUN docker-php-ext-install mysqli pdo pdo_mysql && docker-php-ext-enable pdo_mysql
+RUN apt-get install -y librabbitmq-dev libssl-dev
+RUN  pecl install amqp && docker-php-ext-enable amqp
+
+RUN pecl install mongodb \
+  && docker-php-ext-enable mongodb
+
+COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 WORKDIR "/app"
 
