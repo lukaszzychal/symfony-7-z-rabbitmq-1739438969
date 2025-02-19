@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Message\ImportCsvCustomers;
-use App\Repository\ImportProgressBarRepository;
+use App\Repository\ImportReportRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -42,16 +42,19 @@ final class CsvController extends AbstractController
 
 
     #[Route('/import/status/{fileName}', name: 'app_import_status', methods: ['GET'])]
-    public function importStatus(string $fileName, ImportProgressBarRepository $importProgressBarRepository): JsonResponse
+    public function importStatus(string $fileName, ImportReportRepository $reportRepository): JsonResponse
     {
-        $processBar =  $importProgressBarRepository->findOneByFile($fileName);
-        $percentage = $processBar?->getPercentage() ?? 0;
-        if($processBar && $processBar->isDone()) {
-            $importProgressBarRepository->remove($processBar);
-            $importProgressBarRepository->flushAndClear();
+        $report =  $reportRepository->findOneByFile($fileName);
+        $percentage = $report?->getPercentage() ?? 0;
+        if($report && $report->isDone()) {
+            $reportRepository->remove($report);
+            $reportRepository->flush();
         }
         return new JsonResponse([
-            'percentage' => $percentage
+            'percentage' => $percentage,
+             'count_all_process' => $report?->getSizeProgress() ?? 0,
+             'count_errors' => count($report?->getErrors() ?? []),
+            'errors' => $report?->getErrors() ?? []
         ]);
     }
 

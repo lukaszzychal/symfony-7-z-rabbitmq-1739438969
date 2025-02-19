@@ -6,8 +6,11 @@
 <body>
 <h1>Process started</h1>
 
-<div id="status">
-
+<div id="status"></div>
+<div id="count_all_process"></div>
+<div id="count_errors"></div>
+<div >
+    <ul id="errors"></ul>
 </div>
 
 <script>
@@ -20,21 +23,36 @@
         });
         const dataJson = await response.json(); //extract JSON from the http response
         let percentage = dataJson['percentage'];
+        let count_all_process = dataJson['count_all_process'];
+        let count_errors = dataJson['count_errors'];
+        let errors = dataJson['errors'];
         console.log(percentage)
-        document.getElementById("status").innerHTML = percentage + '%';
+        document.getElementById("status").innerHTML = 'Percentage: ' + percentage + ' %';
+        document.getElementById("count_all_process").innerHTML = 'Row: ' + count_all_process ;
+        document.getElementById("count_errors").innerHTML = 'Count Error: ' + count_errors ;
+
         if(percentage === undefined) {
-            document.getElementById("status").innerHTML = '"Invalid File"';
+            document.getElementById("status").innerHTML = 'Percentage: 0 %';
+            document.getElementById("count_all_process").innerHTML = 'Row: ' + '0';
+            document.getElementById("count_errors").innerHTML = 'Count Error: ' + '0';
+            document.getElementById("errors").innerHTML ='"Invalid File"';
             clearInterval(refreshId);
         }
         if(percentage === 100) {
+
+            let list =
+                document.getElementById('errors');
+            let ul = `<ul>${errors.map(data =>
+                `<li>${data['message']} - ${data['data']}</li>`).join('')}
+                  </ul>`;
+            list.innerHTML = ul;
             clearInterval(refreshId);
         }
 
 
     }
 
-    var refreshId = setInterval(userAction, 500);
-
+    var refreshId = setInterval(userAction, 1000);
     document.getElementById("status").innerHTML = "0%";
 </script>
 

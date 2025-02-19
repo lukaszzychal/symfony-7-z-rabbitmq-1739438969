@@ -8,6 +8,7 @@ use App\Message\ImportCsvCustomers;
 use App\Message\ProgressBarMessage;
 use App\MessageHandler\ImportCsvCustomersHandler;
 use App\Repository\CustomerRepository;
+use App\Repository\ImportReportRepository;
 use App\Services\PercentageCalculationService;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +29,7 @@ class ImportCsvCustomersHandlerTest extends KernelTestCase
 
      private LoggerInterface $logger;
      private CustomerRepository $customerRepository;
+    private ImportReportRepository $importReportRepository;
      private ValidatorInterface $validator;
      private MessageBusInterface $bus;
      private ImportCsvCustomersHandler $handler;
@@ -36,15 +38,18 @@ class ImportCsvCustomersHandlerTest extends KernelTestCase
         parent::setUp();
         $this->logger = self::getContainer()->get(LoggerInterface::class);
         $this->customerRepository = self::getContainer()->get(CustomerRepository::class);
+        $this->importReportRepository = self::getContainer()->get(ImportReportRepository::class);
         $this->validator = self::getContainer()->get(ValidatorInterface::class);
         $this->bus = self::getContainer()->get(MessageBusInterface::class);
         $percentageCalculationService = self::getContainer()->get(PercentageCalculationService::class);
         $this->handler = new ImportCsvCustomersHandler(
             $this->logger,
             $this->customerRepository,
+            $this->importReportRepository,
             $this->validator,
-            $this->bus,
-            $percentageCalculationService);
+            $percentageCalculationService,
+            30
+        );
     }
 
     /** @test  */
@@ -57,7 +62,7 @@ class ImportCsvCustomersHandlerTest extends KernelTestCase
     }
 
     /** @test  */
-    public function procces_duplicate_row(): void
+    public function process_duplicate_row(): void
     {
         $file = new File(__DIR__ . '/../data/data_duplicate_row.csv')  ;
         $message = new ImportCsvCustomers($file->getPathname(), $file->getFilename());
@@ -65,31 +70,25 @@ class ImportCsvCustomersHandlerTest extends KernelTestCase
         $this->handler->__invoke($message);
 
         $customers = $this->customerRepository->findBy(['email' => 'email@email.test']);
+        $reports = $this->importReportRepository->findBy(['file' => $file->getFilename()]);
         self::assertCount(1, $customers);
+        self::assertCount(1, $reports);
+        $this->assertSame(100.0, $reports[0]->getPercentage());
     }
 
-    /** @test  */
-    public function procces_file_and_send_data_customer_to_queue(): void
+    /** @test */
+    public function process_100_percent(): void
     {
         $file = new File(__DIR__ . '/../data/data_test.csv')  ;
         $message = new ImportCsvCustomers($file->getPathname(), $file->getFilename());
 
         $this->handler->__invoke($message);
 
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.async_progress_bar_message');
-        $this->assertCount(1, $transport->getSent());
-        $message = $transport->getSent()[0]->getMessage();
-        $this->assertInstanceOf(ProgressBarMessage::class, $message);
-        self::assertSame(100, $message->percentage);
-
+        $reports = $this->importReportRepository->findBy(['file' => $file->getFilename()]);
+        self::assertCount(1, $reports);
+        $this->assertSame(100.0, $reports[0]->getPercentage());
     }
 
 
-    protected function tearDown(): void
-    {
-        parent::tearDown();
 
-
-    }
 }
