@@ -36,6 +36,11 @@ class Customer
 
     }
 
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
     public function getId(): ?int
     {
         return $this->id;

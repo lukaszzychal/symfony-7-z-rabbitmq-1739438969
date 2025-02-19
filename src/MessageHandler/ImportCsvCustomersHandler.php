@@ -3,31 +3,28 @@
 namespace App\MessageHandler;
 
 use App\Document\Customer;
+use App\Document\ImportReport;
 use App\Message\ImportCsvCustomers;
-use App\Message\ProgressBarMessage;
 use App\Repository\CustomerRepository;
+use App\Repository\ImportReportRepository;
 use App\Services\PercentageCalculationService;
-use Doctrine\ODM\MongoDB\DocumentManager;
-use MongoDB\Driver\Exception\BulkWriteException;
 use Psr\Log\LoggerInterface;
 use SplFileObject;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[AsMessageHandler]
 final class ImportCsvCustomersHandler
 {
-    private const INVALID_DATA_LOG_FILE = __DIR__ . '/../invalid_report.log';
-
-
     public function __construct(
-        private LoggerInterface     $logger,
-        private CustomerRepository     $customerRepository,
-        private ValidatorInterface  $validator,
-        private MessageBusInterface $bus,
-        private PercentageCalculationService $percentageCalculationService
+        private LoggerInterface              $logger,
+        private CustomerRepository           $customerRepository,
+        private ImportReportRepository       $importReportRepository,
+        private ValidatorInterface           $validator,
+        private PercentageCalculationService $percentageCalculationService,
+        #[Autowire('%env(int:BATCH_SIZE)%')]
+        private int                          $batchSize
     )
     {
 
@@ -35,11 +32,53 @@ final class ImportCsvCustomersHandler
 
     public function __invoke(ImportCsvCustomers $message): void
     {
-        ;
         if (!file_exists($message->filepath)) {
             throw new \RuntimeException('File not found: ' . $message->filepath);
         }
 
+        $fileObj = $this->createSplCsvFileObject($message);
+        $report = $this->createOrFindReport($fileObj);
+        $this->importReportRepository->persistAndFlush($report);
+        $t1 = microtime(true);
+        $sizeProgress = 0;
+        $sizeRow = $fileObj->key();
+        $fileObj->rewind();
+
+        foreach ($fileObj as $key => $row) {
+            ++$sizeProgress;
+            if ($this->isHeaders($key)) {
+                continue;
+            }
+
+            [$id, $fullName, $email, $city] = $row;
+            $customer = $this->getOrCreateCustomer($email, $fullName, $city);
+            $isValid = $this->validateCustomer($customer);
+            if (!$isValid) {
+                $report->addError(['message' => 'Invalid data row',
+                    'data' => json_encode($row)]);
+                continue;
+            }
+
+            $this->bulkInserts($sizeProgress, $this->batchSize, $sizeRow, $report);
+
+        }
+        $report->updatePercentage(100);
+        $report->setSizeProgress($sizeProgress);
+        $this->importReportRepository->getDocumentManager()->merge($report);
+        $this->customerRepository->flush();
+        $this->customerRepository->clear();
+
+        $t2 = microtime(true);
+        $this->logger->info('Progress: ' . $report->getPercentage() . '% - ' . ($t2 - $t1) . 's');
+        unset($file);
+    }
+
+    /**
+     * @param ImportCsvCustomers $message
+     * @return SplFileObject
+     */
+    public function createSplCsvFileObject(ImportCsvCustomers $message): SplFileObject
+    {
         $fileObj = new SplFileObject($message->filepath);
         $fileObj->setFlags(
             SplFileObject::READ_CSV
@@ -47,86 +86,86 @@ final class ImportCsvCustomersHandler
             | SplFileObject::SKIP_EMPTY
             | SplFileObject::DROP_NEW_LINE
         );
-
-        $batchSize = 20;
-        $sizeProgress = 0;
         $fileObj->seek(PHP_INT_MAX);
-        $sizeRow = $fileObj->key();
-        foreach ($fileObj as $key => $row) {
-            $sizeProgress++;
-            $percent = $this->percentageCalculationService->getPercentage($sizeProgress, $sizeRow);
-            if ($key === 0) {
-                continue;
-            }
-            [$id, $fullName, $email, $city] = $row;
-            $customer = new Customer($fullName, $email, $city);;
-            $constraints = $this->validator->validate($customer);
-            if (count($constraints) > 0) {
-                $this->invalidRow($constraints, $customer);
-                continue;
-            }
-
-            $this->customerRepository->persist($customer);
-            if (($sizeProgress % $batchSize) === 0) {
-
-                $this->logger->info('Progress: ' . $percent . '%');
-                $this->bus->dispatch(new ProgressBarMessage($fileObj->getFilename(), $percent));
-                $this->flushAndClear();
-            }
-        }
-        $this->flushAndClear();
-        $this->bus->dispatch(new ProgressBarMessage($fileObj->getFilename(), 100));
-        $percent = $this->percentageCalculationService->getPercentage($sizeProgress, $sizeRow);
-        $this->logger->info('Progress: ' . $percent . '%');
-
-        unset($file);
-
-    }
-
-
-    private function invalidRow(ConstraintViolationListInterface $constraints, Customer $customer): void
-    {
-        $this->logger->warning(
-            "Invalid Data:", $customer->toArray()
-        );
-
-        file_put_contents(
-            self::INVALID_DATA_LOG_FILE,
-            "Invalid Data:" . json_encode($customer->toArray()) . PHP_EOL,
-            FILE_APPEND
-        );
-
-
-        foreach ($constraints as $constraint) {
-
-            $message = $constraint->getMessage();
-            $property = $constraint->getPropertyPath();
-            $invalidValue = $constraint->getInvalidValue();
-            $this->logger->warning(
-                "Invalid value: Message: {$message}, Property: {$property}, InvalidValue: {$invalidValue}"
-            );
-
-            file_put_contents(
-                self::INVALID_DATA_LOG_FILE,
-                "Invalid value: Message: {$message}, Property: {$property}, InvalidValue: {$invalidValue}" . PHP_EOL,
-                FILE_APPEND
-            );
-        }
-
+        return $fileObj;
     }
 
     /**
-     * @return void
-     * @throws \Doctrine\ODM\MongoDB\MongoDBException
-     * @throws \Throwable
+     * @param SplFileObject $fileObj
+     * @return ImportReport
      */
-    private function flushAndClear(): void
+    public function createOrFindReport(SplFileObject $fileObj): ImportReport
     {
-        try {
-            $this->customerRepository->flushAndClear();
-        } catch (BulkWriteException $e) {
-            $this->logger->warning($e->getMessage());
+        $report = $this->importReportRepository->findOneBy(['file' => $fileObj->getFilename()]);
+        if ($report) {
+            return $report;
         }
 
+        return new ImportReport($fileObj->getFilename());
+    }
+
+    /**
+     * @param int|string $key
+     * @return bool
+     */
+    public function isHeaders(int $key): bool
+    {
+        return $key === 0;
+    }
+
+    /**
+     * @param $email
+     * @param $fullName
+     * @param $city
+     * @return Customer|array|null
+     */
+    public
+    function getOrCreateCustomer($email, $fullName, $city): Customer|array|null
+    {
+        $customer = $this->customerRepository->findCustomerByEmail($email);
+        $scheduledDocumentInsertions = $this->customerRepository->getDocumentManager()->getUnitOfWork()->getScheduledDocumentInsertions();
+        $exist = array_values(array_filter($scheduledDocumentInsertions, static fn(Customer $document) => $document->getEmail() === $email));
+        $customer = $customer ?? $exist[0] ?? null;
+        if (!$customer && !$exist) {
+            $customer = new Customer($fullName, $email, $city);
+            $this->customerRepository->persist($customer);
+        }
+        return $customer;
+    }
+
+    private function validateCustomer(Customer $customer): bool
+    {
+        $constraints = $this->validator->validate($customer);
+        return !count($constraints);
+    }
+
+    /**
+     * @param int $sizeProgress
+     * @param int $batchSize
+     * @param int $sizeRow
+     * @param ImportReport $report
+     * @return void
+     * @throws \Doctrine\ODM\MongoDB\LockException
+     */
+    public function bulkInserts(int $sizeProgress, int $batchSize, int $sizeRow, ImportReport $report): void
+    {
+        if ($this->readyBulkInserts($sizeProgress, $batchSize)) {
+            $percent = $this->percentageCalculationService->getPercentage($sizeProgress, $sizeRow);
+            $report->updatePercentage($percent);
+            $this->logger->info($report->getFile().' '.$percent. '%');
+            $this->customerRepository->flush();
+            $this->customerRepository->clear();
+            $this->importReportRepository->getDocumentManager()->merge($report);
+        }
+    }
+
+    /**
+     * @param int $sizeProgress
+     * @param int $batchSize
+     * @return bool
+     */
+    public function readyBulkInserts(int $sizeProgress, int $batchSize): bool
+    {
+        return ($sizeProgress % $batchSize) === 0;
     }
 }

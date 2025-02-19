@@ -3,7 +3,7 @@
 namespace App\Repository;
 
 use App\Document\Customer;
-use App\Document\ImportProgressBar;
+use App\Document\ImportReport;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\Bundle\MongoDBBundle\Repository\ServiceDocumentRepository;
 
@@ -51,9 +51,25 @@ class CustomerRepository extends ServiceDocumentRepository
         $this->dm->persist($customer);
     }
 
-    public function flushAndClear(): void
+    public function flush(): void
     {
         $this->dm->flush();
+//        $this->dm->clear();
+    }
+
+    public function clear(): void
+    {
         $this->dm->clear();
+    }
+
+    /**
+     * @param $fullName
+     * @param $email
+     * @param $city
+     * @return array
+     */
+    public function findCustomerByEmail($email): ?Customer
+    {
+        return $this->findOneBy(['email' => $email]);
     }
 }

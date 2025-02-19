@@ -6,13 +6,11 @@ framework:
         transports:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
              async: '%env(MESSENGER_TRANSPORT_DSN)%'
-             async_progress_bar_message: '%env(MESSENGER_TRANSPORT_DSN)%'
             # failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 
         routing:
             'App\Message\ImportCsvCustomers': async
-            App\Message\ProgressBarMessage: async_progress_bar_message
             # Route your messages to the transports
             # 'App\Message\YourMessage': async
 
@@ -23,4 +21,3 @@ when@test:
                 # replace with your transport name here (e.g., my_transport: 'in-memory://')
                 # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
                 async: 'in-memory://'
-                async_progress_bar_message: 'in-memory://'

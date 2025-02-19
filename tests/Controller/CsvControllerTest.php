@@ -2,7 +2,7 @@
 
 namespace App\Tests\Controller;
 
-use App\Document\ImportProgressBar;
+use App\Document\ImportReport;
 use App\Message\ImportCsvCustomers;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -55,7 +55,7 @@ final class CsvControllerTest extends WebTestCase
 
         $client->request('GET', '/import/status/'.$fileName);
 
-        self::assertStringContainsStringIgnoringCase('{"percentage":0}', $client->getResponse()->getContent());
+        self::assertStringContainsStringIgnoringCase('{"percentage":0,"count_all_process":0,"count_errors":0,"errors":[]}', $client->getResponse()->getContent());
     }
 
     /**  @test */
@@ -64,13 +64,14 @@ final class CsvControllerTest extends WebTestCase
         $client = static::createClient();
         $fileName = 'data_test.csv';
         $dm = self::getContainer()->get(DocumentManager::class);
-        $importProgressBar = new ImportProgressBar($fileName, 10);
-        $dm->persist($importProgressBar);
+        $raport = new ImportReport($fileName);
+        $raport->updatePercentage(10);
+        $dm->persist($raport);
         $dm->flush();
         $client->request('GET', '/import/status/'.$fileName);
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString(  '{"percentage":10}', $client->getResponse()->getContent());
+        self::assertStringContainsString(  '{"percentage":10,"count_all_process":0,"count_errors":0,"errors":[]}', $client->getResponse()->getContent());
     }
 
 

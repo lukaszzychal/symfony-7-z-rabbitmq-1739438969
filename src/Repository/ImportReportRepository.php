@@ -3,18 +3,18 @@
 namespace App\Repository;
 
 use App\Document\Customer;
-use App\Document\ImportProgressBar;
+use App\Document\ImportReport;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\Bundle\MongoDBBundle\Repository\ServiceDocumentRepository;
 
 /**
  * @extends ServiceDocumentRepository<Customer>
  */
-class ImportProgressBarRepository extends ServiceDocumentRepository
+class ImportReportRepository extends ServiceDocumentRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, ImportProgressBar::class);
+        parent::__construct($registry, ImportReport::class);
     }
 
 //    /**
@@ -41,19 +41,30 @@ class ImportProgressBarRepository extends ServiceDocumentRepository
 //            ->getOneOrNullResult()
 //        ;
 //    }
-    public function findOneByFile(string $fileName): ?ImportProgressBar
+    public function findOneByFile(string $fileName): ?ImportReport
     {
         return $this->findOneBy(['file' => $fileName]);
     }
 
-    public function remove(ImportProgressBar $processBar): void
+    public function remove(ImportReport $processBar): void
     {
         $this->dm->remove($processBar);
     }
 
-    public function flushAndClear(): void
+    public function flush(): void
     {
         $this->dm->flush();
-        $this->dm->clear();
+//        $this->dm->clear();
+    }
+
+    public function persist(ImportReport $report): void
+    {
+        $this->dm->persist($report);
+    }
+
+    public function persistAndFlush(ImportReport $report)
+    {
+        $this->dm->persist($report);
+        $this->dm->flush();
     }
 }
