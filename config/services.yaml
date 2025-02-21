@@ -6,7 +6,7 @@
 parameters:
     env(MONGODB_URL): ''
     env(MONGODB_DB): ''
-#    env(BATCH_SIZE): '25'
+    env(BATCH_SIZE): '25'
 
 services:
     # default configuration for services in *this* file

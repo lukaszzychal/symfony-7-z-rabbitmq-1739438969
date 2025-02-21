@@ -32,7 +32,7 @@ class ImportReport
         private string $file
     )
     {
-        $this->customers = new ArrayCollection();
+
     }
 
     public function getFile(): string
