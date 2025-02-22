@@ -123,7 +123,10 @@ final class ImportCsvCustomersHandler
     function getOrCreateCustomer($email, $fullName, $city): Customer|array|null
     {
         $customer = $this->customerRepository->findCustomerByEmail($email);
-        if (!$customer) {
+        $scheduledDocumentInsertions = $this->customerRepository->getDocumentManager()->getUnitOfWork()->getScheduledDocumentInsertions();
+        $exist = array_values(array_filter($scheduledDocumentInsertions, static fn(Customer $document) => $document->getEmail() === $email));
+        $customer = $customer ?? $exist[0] ?? null;
+        if (!$customer && !$exist) {
             $customer = new Customer($fullName, $email, $city);
             $this->customerRepository->persist($customer);
         }
